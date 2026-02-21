@@ -1,4 +1,4 @@
-use clap::{value_parser, Arg, Command};
+use clap::{value_parser, Arg, ArgGroup, Command};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -6,6 +6,7 @@ use std::process::{Command as ProcessCommand, Stdio};
 use std::{thread, time};
 use tabled::{settings::Style, Table};
 
+mod browse;
 mod put;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -114,11 +115,23 @@ fn cli() -> Command {
                         .about("Download a file or folder")
                         .long_about("Downloads a file or folder from your account to your device.")
                         .arg_required_else_help(true)
+                        .group(
+                            ArgGroup::new("target")
+                                .args(["SOURCE_PATH", "id"])
+                                .required(true)
+                        )
                         .arg(
-                            Arg::new("FILE_ID")
+                            Arg::new("SOURCE_PATH")
+                            .help("Path to a file or folder on Put.io (e.g. Movies/film.mkv)")
+                            .required(false)
+                        )
+                        .arg(
+                            Arg::new("id")
+                            .short('i')
+                            .long("id")
                             .value_parser(value_parser!(i64))
-                            .required(true)
-                            .help("ID(s) of a file or folder (required)")
+                            .help("ID of a file or folder on Put.io")
+                            .required(false)
                         )
                         .arg(
                             Arg::new("path")
@@ -323,6 +336,10 @@ fn cli() -> Command {
                 )
         )
         .subcommand(
+            Command::new("browse")
+                .about("Browse your files interactively")
+        )
+        .subcommand(
             Command::new("whoami")
                 .about("Check what account you are logged into")
                 .long_about(
@@ -519,17 +536,23 @@ fn main() {
 
                 let recursive = sub_matches.get_flag("recursive");
                 let no_replace = sub_matches.get_flag("no-replace");
-                let path = sub_matches.get_one::<String>("path");
-                let file_id = sub_matches
-                    .get_one("FILE_ID")
-                    .expect("missing file_id argument");
+                let dest_path = sub_matches.get_one::<String>("path");
+                let file_id = if let Some(id) = sub_matches.get_one::<i64>("id") {
+                    *id
+                } else {
+                    let source_path = sub_matches
+                        .get_one::<String>("SOURCE_PATH")
+                        .expect("missing source path");
+                    put::files::resolve_path(&client, &config.api_token, source_path)
+                        .unwrap_or_else(|e| panic!("Could not find '{}': {}", source_path, e))
+                };
 
                 put::files::download(
                     &client,
                     &config.api_token,
-                    *file_id,
+                    file_id,
                     recursive,
-                    path,
+                    dest_path,
                     no_replace,
                 )
                 .expect("downloading file(s)");
@@ -713,6 +736,10 @@ fn main() {
             }
         },
 
+        Some(("browse", _)) => {
+            require_auth(&client, &config);
+            browse::run(&client, &config.api_token).expect("error running file browser");
+        }
         _ => {
             println!("Invalid command. Try using the `--help` flag.")
         }

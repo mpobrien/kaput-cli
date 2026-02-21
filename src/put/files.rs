@@ -12,7 +12,7 @@ use tabled::Tabled;
 use crate::put;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FileSize(u64);
+pub struct FileSize(pub u64);
 
 impl fmt::Display for FileSize {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -36,6 +36,41 @@ pub struct File {
 pub struct FilesResponse {
     pub files: Vec<File>,
     pub parent: File,
+}
+
+/// Resolves a slash-separated path (e.g. "Movies/Action/film.mkv") to a file ID
+/// by walking the Put.io folder tree from the root. Matching is case-insensitive.
+/// Returns an error string if any component is not found.
+pub fn resolve_path(client: &Client, api_token: &String, path: &str) -> Result<i64, String> {
+    let parts: Vec<&str> = path
+        .trim_matches('/')
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let mut current_id: i64 = 0;
+
+    for (i, part) in parts.iter().enumerate() {
+        let response = list(client, api_token, current_id)
+            .map_err(|e| e.to_string())?;
+
+        let found = response
+            .files
+            .iter()
+            .find(|f| f.name.to_lowercase() == part.to_lowercase());
+
+        match found {
+            Some(file) => {
+                if i < parts.len() - 1 && file.file_type != "FOLDER" {
+                    return Err(format!("'{}' is not a folder", part));
+                }
+                current_id = file.id;
+            }
+            None => return Err(format!("'{}' not found", part)),
+        }
+    }
+
+    Ok(current_id)
 }
 
 /// Returns the user's files.
