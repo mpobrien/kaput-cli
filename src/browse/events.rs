@@ -24,6 +24,7 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
                     match put::files::delete(client, api_token, &file_id.to_string()) {
                         Ok(_) => {
                             app.save_position_for_reload();
+                            app.spinner_label = "Deleting...".to_string();
                             app.modal = ModalState::Loading;
                             app.needs_reload = true;
                         }
@@ -90,6 +91,7 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
                 KeyCode::Enter => {
                     if !query.is_empty() {
                         app.pending_action = PendingAction::Search { query };
+                        app.spinner_label = "Searching...".to_string();
                         app.modal = ModalState::Loading;
                     } else {
                         app.modal = ModalState::None;

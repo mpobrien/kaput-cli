@@ -30,7 +30,7 @@ pub fn draw(f: &mut Frame, app: &mut BrowserApp) {
 
     // Draw modal overlays last
     match &app.modal {
-        ModalState::Loading => draw_spinner(f, app.tick),
+        ModalState::Loading => draw_spinner(f, app.tick, &app.spinner_label),
         ModalState::Error(msg) => draw_error_modal(f, msg.clone()),
         ModalState::Success(msg) => draw_success_modal(f, msg.clone()),
         ModalState::ConfirmDelete { file_name, .. } => draw_confirm_modal(f, file_name.clone()),
@@ -123,22 +123,30 @@ fn draw_help_bar(f: &mut Frame, app: &BrowserApp, area: Rect) {
         SortField::Modified => "Modified",
     };
 
-    // 4 columns, 2 rows. Within each column: key right-aligned, label left-aligned.
-    // Col 1: (key_w=5, label_w=8)  Navigate / Back
-    // Col 2: (key_w=5, label_w=6)  Open / Delete
-    // Col 3: (key_w=1, label_w=8)  Sort(field) / Reverse
-    // Col 4: (key_w=5, label_w=6)  ^U/^D Scroll / q Quit
+    // 4 columns, 2 rows. Key right-aligned per column, label left-aligned.
+    // Col 1: key_w=5  (↑↓/jk  /   Bksp)
+    // Col 2: key_w=8  (Enter/^O  /  x)
+    // Col 3: key_w=1  (s  /  r)
+    // Col 4: key_w=5  (^U/^D  /  ^F)
     let row1 = Line::from(vec![
-        Span::styled("↑↓", k), Span::styled("/", l), Span::styled("jk", k), Span::styled(format!(" {:<8}", "Navigate"), l), sep.clone(),
-        Span::styled(format!("{:>5}", "Enter"),  k), Span::styled("/", l), Span::styled("^O", k), Span::styled(format!(" {:<6}", "Open"),     l), sep.clone(),
-        Span::styled(format!("{:>1}", "s"),       k), Span::styled(format!(" {:<8}", sort_label), l), sep.clone(),
-        Span::styled("^U", k), Span::styled("/", l), Span::styled("^D", k), Span::styled(format!(" {:<6}", "Scroll"),   l),
+        Span::styled("↑↓", k), Span::styled("/", l), Span::styled("jk", k),
+        Span::styled(format!("  {:<8}", "Navigate"), l), sep.clone(),
+        Span::styled("Enter", k), Span::styled("/", l), Span::styled("^O", k),
+        Span::styled(format!("  {:<6}", "Open"),     l), sep.clone(),
+        Span::styled("s", k),
+        Span::styled(format!("  {:<8}", sort_label), l), sep.clone(),
+        Span::styled("^U", k), Span::styled("/", l), Span::styled("^D", k),
+        Span::styled(format!("  {:<6}", "Scroll"),   l),
     ]);
     let row2 = Line::from(vec![
-        Span::styled(format!("{:>5}", "Bksp"),   k), Span::styled(format!(" {:<8}", "Back"),     l), sep.clone(),
-        Span::styled(format!("{:>5}", "x"),       k), Span::styled(format!(" {:<6}", "Delete"),   l), sep.clone(),
-        Span::styled(format!("{:>1}", "r"),       k), Span::styled(format!(" {:<8}", "Reverse"),  l), sep.clone(),
-        Span::styled(format!("{:>5}", "q"),       k), Span::styled(format!(" {:<6}", "Quit"),     l),
+        Span::styled(format!("{:>5}", "Bksp"),  k),
+        Span::styled(format!("  {:<8}", "Back"),     l), sep.clone(),
+        Span::styled(format!("{:>8}", "x"),     k),
+        Span::styled(format!("  {:<6}", "Delete"),   l), sep.clone(),
+        Span::styled("r", k),
+        Span::styled(format!("  {:<8}", "Reverse"),  l), sep.clone(),
+        Span::styled(format!("{:>5}", "^F"),    k),
+        Span::styled(format!("  {:<6}", "Search"),   l),
     ]);
 
     f.render_widget(
@@ -193,18 +201,19 @@ fn draw_find_bar(f: &mut Frame, query: &str) {
     f.set_cursor(cursor_x, y);
 }
 
-fn draw_spinner(f: &mut Frame, tick: u8) {
+fn draw_spinner(f: &mut Frame, tick: u8, label: &str) {
     const FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
     let ch = FRAMES[tick as usize % FRAMES.len()];
     let size = f.size();
+    let text = format!("{} {}", ch, label);
     let area = Rect {
         x: 1,
         y: size.height.saturating_sub(1),
-        width: 1,
+        width: text.chars().count() as u16,
         height: 1,
     };
     f.render_widget(
-        Paragraph::new(ch.to_string()).style(Style::default().fg(Color::Yellow)),
+        Paragraph::new(text).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         area,
     );
 }

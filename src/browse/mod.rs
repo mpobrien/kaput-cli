@@ -3,6 +3,8 @@ mod events;
 mod ui;
 
 use std::io;
+use std::sync::mpsc;
+use std::time::Duration;
 
 use crossterm::{
     event::{self, Event},
@@ -39,20 +41,46 @@ pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
             break;
         }
 
-        // Draw happens before the load so the spinner is visible during the request.
         if app.needs_reload {
             app.needs_reload = false;
-            load_current_folder(&mut app, client, api_token);
+            if !matches!(app.modal, ModalState::Loading) {
+                app.spinner_label = "Loading...".to_string();
+                app.modal = ModalState::Loading;
+            }
+            let client2 = client.clone();
+            let token2 = api_token.clone();
+            let folder_id = app.current_folder_id;
+            let result = spin_while(&mut terminal, &mut app, move || {
+                put::files::list(&client2, &token2, folder_id)
+            })?;
+            match result {
+                Ok(r) => {
+                    if app.current_folder_id != 0 {
+                        if let Some(crumb) = app.breadcrumbs.last_mut() {
+                            if crumb.id == app.current_folder_id {
+                                crumb.name = r.parent.name.clone();
+                            }
+                        }
+                    }
+                    app.set_files(r.files);
+                }
+                Err(e) => app.modal = ModalState::Error(e.to_string()),
+            }
             continue;
         }
 
-        // Handle pending actions that need the spinner frame to render first.
         let pending = std::mem::replace(&mut app.pending_action, PendingAction::None);
         match pending {
             PendingAction::None => {}
 
             PendingAction::Search { query } => {
-                match put::files::search(client, api_token, &query) {
+                let client2 = client.clone();
+                let token2 = api_token.clone();
+                let query2 = query.clone();
+                let result = spin_while(&mut terminal, &mut app, move || {
+                    put::files::search(&client2, &token2, &query2)
+                })?;
+                match result {
                     Ok(r) => app.enter_search_results(&query, r.files),
                     Err(e) => app.modal = ModalState::Error(format!("Search failed: {}", e)),
                 }
@@ -87,7 +115,7 @@ pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
             break;
         }
 
-        if event::poll(std::time::Duration::from_millis(100))? {
+        if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 events::handle_key(&mut app, key, client, api_token);
             }
@@ -101,19 +129,30 @@ pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
     Ok(())
 }
 
-pub(super) fn load_current_folder(app: &mut BrowserApp, client: &Client, api_token: &String) {
-    match put::files::list(client, api_token, app.current_folder_id) {
-        Ok(r) => {
-            // Update the breadcrumb name from the API response (covers "Go to folder" placeholders)
-            if app.current_folder_id != 0 {
-                if let Some(crumb) = app.breadcrumbs.last_mut() {
-                    if crumb.id == app.current_folder_id {
-                        crumb.name = r.parent.name.clone();
-                    }
-                }
+/// Runs a blocking closure on a background thread while keeping the TUI draw
+/// loop alive so the spinner actually animates.
+fn spin_while<T, F>(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    mut app: &mut BrowserApp,
+    work: F,
+) -> io::Result<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || { tx.send(work()).ok(); });
+    loop {
+        app.tick = app.tick.wrapping_add(1);
+        terminal.draw(|f| ui::draw(f, &mut app))?;
+        match rx.try_recv() {
+            Ok(result) => return Ok(result),
+            Err(mpsc::TryRecvError::Disconnected) => {
+                return Err(io::Error::new(io::ErrorKind::Other, "worker thread panicked"));
             }
-            app.set_files(r.files);
+            Err(mpsc::TryRecvError::Empty) => {
+                std::thread::sleep(Duration::from_millis(80));
+            }
         }
-        Err(e) => app.modal = ModalState::Error(e.to_string()),
     }
 }
