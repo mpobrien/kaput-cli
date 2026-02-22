@@ -5,6 +5,7 @@ pub enum SortField {
     Name,
     Size,
     Date,
+    Modified,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -36,16 +37,41 @@ pub enum ModalState {
     Success(String),
 }
 
+pub struct FileAction {
+    pub label: &'static str,
+    pub key: char,
+}
+
 /// Returns the ordered list of actions available for a given file type.
 /// Used by both the event handler and the UI renderer.
-pub fn file_actions_for(file_type: &str, in_search_results: bool) -> Vec<&'static str> {
-    let mut actions = if file_type == "VIDEO" {
-        vec!["Copy URL", "Copy Stream URL", "Download", "Open in browser", "Copy file ID"]
+pub fn file_actions_for(file_type: &str, in_search_results: bool) -> Vec<FileAction> {
+    let mut actions = if file_type == "FOLDER" {
+        vec![
+            FileAction { label: "Download as zip", key: 'z' },
+            FileAction { label: "Open in browser", key: 'b' },
+            FileAction { label: "Copy path",       key: 'p' },
+            FileAction { label: "Copy folder ID",  key: 'i' },
+        ]
+    } else if file_type == "VIDEO" {
+        vec![
+            FileAction { label: "Copy URL",        key: 'c' },
+            FileAction { label: "Copy Stream URL", key: 's' },
+            FileAction { label: "Download",        key: 'd' },
+            FileAction { label: "Open in browser", key: 'b' },
+            FileAction { label: "Copy path",       key: 'p' },
+            FileAction { label: "Copy file ID",    key: 'i' },
+        ]
     } else {
-        vec!["Copy URL", "Download", "Open in browser", "Copy file ID"]
+        vec![
+            FileAction { label: "Copy URL",        key: 'c' },
+            FileAction { label: "Download",        key: 'd' },
+            FileAction { label: "Open in browser", key: 'b' },
+            FileAction { label: "Copy path",       key: 'p' },
+            FileAction { label: "Copy file ID",    key: 'i' },
+        ]
     };
     if in_search_results {
-        actions.push("Go to folder");
+        actions.push(FileAction { label: "Go to folder", key: 'g' });
     }
     actions
 }
@@ -220,6 +246,7 @@ impl BrowserApp {
                 SortField::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
                 SortField::Size => a.size.0.cmp(&b.size.0),
                 SortField::Date => a.created_at.cmp(&b.created_at),
+                SortField::Modified => a.updated_at.cmp(&b.updated_at),
             };
             if dir == SortDirection::Desc { ord.reverse() } else { ord }
         });
@@ -229,7 +256,8 @@ impl BrowserApp {
         self.sort_field = match self.sort_field {
             SortField::Name => SortField::Size,
             SortField::Size => SortField::Date,
-            SortField::Date => SortField::Name,
+            SortField::Date => SortField::Modified,
+            SortField::Modified => SortField::Name,
         };
         self.sort_files();
         self.selected_index = 0;

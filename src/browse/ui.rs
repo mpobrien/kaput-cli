@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, Padding, Paragraph},
 };
 
-use super::app::{file_actions_for, AppState, BrowserApp, ModalState};
+use super::app::{file_actions_for, AppState, BrowserApp, FileAction, ModalState, SortField};
 
 const MODAL_BG: Color = Color::Rgb(45, 45, 58);
 
@@ -26,7 +26,7 @@ pub fn draw(f: &mut Frame, app: &mut BrowserApp) {
 
     draw_breadcrumb(f, app, chunks[0]);
     draw_file_list(f, app, chunks[1]);
-    draw_help_bar(f, chunks[2]);
+    draw_help_bar(f, app, chunks[2]);
 
     // Draw modal overlays last
     match &app.modal {
@@ -111,26 +111,33 @@ fn draw_file_list(f: &mut Frame, app: &mut BrowserApp, area: Rect) {
     f.render_stateful_widget(list, area, &mut app.list_state);
 }
 
-fn draw_help_bar(f: &mut Frame, area: Rect) {
+fn draw_help_bar(f: &mut Frame, app: &BrowserApp, area: Rect) {
     let k = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
     let l = Style::default().fg(Color::DarkGray);
     let sep = Span::styled("    ", l);
 
+    let sort_label = match app.sort_field {
+        SortField::Name     => "Name    ",
+        SortField::Size     => "Size    ",
+        SortField::Date     => "Date    ",
+        SortField::Modified => "Modified",
+    };
+
     // 4 columns, 2 rows. Within each column: key right-aligned, label left-aligned.
     // Col 1: (key_w=5, label_w=8)  Navigate / Back
     // Col 2: (key_w=5, label_w=6)  Open / Delete
-    // Col 3: (key_w=1, label_w=7)  Sort / Reverse
+    // Col 3: (key_w=1, label_w=8)  Sort(field) / Reverse
     // Col 4: (key_w=5, label_w=6)  ^U/^D Scroll / q Quit
     let row1 = Line::from(vec![
         Span::styled("↑↓", k), Span::styled("/", l), Span::styled("jk", k), Span::styled(format!(" {:<8}", "Navigate"), l), sep.clone(),
-        Span::styled(format!("{:>5}", "Enter"),  k), Span::styled(format!(" {:<6}", "Open"),     l), sep.clone(),
-        Span::styled(format!("{:>1}", "s"),       k), Span::styled(format!(" {:<7}", "Sort"),     l), sep.clone(),
+        Span::styled(format!("{:>5}", "Enter"),  k), Span::styled("/", l), Span::styled("^O", k), Span::styled(format!(" {:<6}", "Open"),     l), sep.clone(),
+        Span::styled(format!("{:>1}", "s"),       k), Span::styled(format!(" {:<8}", sort_label), l), sep.clone(),
         Span::styled("^U", k), Span::styled("/", l), Span::styled("^D", k), Span::styled(format!(" {:<6}", "Scroll"),   l),
     ]);
     let row2 = Line::from(vec![
         Span::styled(format!("{:>5}", "Bksp"),   k), Span::styled(format!(" {:<8}", "Back"),     l), sep.clone(),
         Span::styled(format!("{:>5}", "x"),       k), Span::styled(format!(" {:<6}", "Delete"),   l), sep.clone(),
-        Span::styled(format!("{:>1}", "r"),       k), Span::styled(format!(" {:<7}", "Reverse"),  l), sep.clone(),
+        Span::styled(format!("{:>1}", "r"),       k), Span::styled(format!(" {:<8}", "Reverse"),  l), sep.clone(),
         Span::styled(format!("{:>5}", "q"),       k), Span::styled(format!(" {:<6}", "Quit"),     l),
     ]);
 
@@ -227,12 +234,12 @@ fn draw_success_modal(f: &mut Frame, msg: String) {
         .border_type(BorderType::Rounded)
         .padding(Padding::symmetric(2, 1))
         .title(" Done ")
-        .style(Style::default().fg(Color::Black).bg(Color::Green));
+        .style(Style::default().fg(Color::Green).bg(MODAL_BG));
     let inner = block.inner(area);
     f.render_widget(block, area);
     let p = Paragraph::new(msg.as_str())
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::Black).bg(Color::Green));
+        .style(Style::default().fg(Color::Green).bg(MODAL_BG));
     f.render_widget(p, inner);
 }
 
@@ -255,22 +262,24 @@ fn draw_file_actions_modal(f: &mut Frame, file_name: &str, file_type: &str, sele
     let items: Vec<ListItem> = actions
         .iter()
         .enumerate()
-        .map(|(i, action)| {
+        .map(|(i, FileAction { label, key })| {
             let is_sel = i == selected;
             let cursor = if is_sel { "▶" } else { " " };
-            let style = if is_sel {
-                Style::default()
-                    .bg(Color::LightCyan)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD)
+            let (row_style, key_style) = if is_sel {
+                let s = Style::default().bg(Color::LightCyan).fg(Color::Black).add_modifier(Modifier::BOLD);
+                (s, s)
             } else {
-                Style::default().bg(MODAL_BG)
+                (
+                    Style::default().bg(MODAL_BG),
+                    Style::default().bg(MODAL_BG).fg(Color::DarkGray),
+                )
             };
             ListItem::new(Line::from(vec![
-                Span::styled(format!(" {} ", cursor), style),
-                Span::styled(action.to_string(), style),
+                Span::styled(format!(" {} ", cursor), row_style),
+                Span::styled(format!("[{}] ", key), key_style),
+                Span::styled(label.to_string(), row_style),
                 // Fill the rest of the row so the highlight spans the full width
-                Span::styled(" ".repeat(30), style),
+                Span::styled(" ".repeat(30), row_style),
             ]))
         })
         .collect();

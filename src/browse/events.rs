@@ -46,7 +46,8 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
             let file_name = file_name.clone();
             let file_type = file_type.clone();
             let in_search = app.is_search_results;
-            let n = file_actions_for(&file_type, in_search).len();
+            let actions = file_actions_for(&file_type, in_search);
+            let n = actions.len();
 
             match key.code {
                 KeyCode::Up | KeyCode::Char('k') => {
@@ -62,11 +63,18 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
                     };
                 }
                 KeyCode::Enter => {
-                    let action = file_actions_for(&file_type, in_search)[selected];
+                    let label = actions[selected].label;
                     app.modal = ModalState::None;
-                    execute_file_action(app, action, file_id, &file_type, api_token, client);
+                    execute_file_action(app, label, file_id, &file_type, api_token, client);
                 }
-                KeyCode::Esc | KeyCode::Char('q') => {
+                KeyCode::Char(c) => {
+                    if let Some(action) = actions.iter().find(|a| a.key == c) {
+                        let label = action.label;
+                        app.modal = ModalState::None;
+                        execute_file_action(app, label, file_id, &file_type, api_token, client);
+                    }
+                }
+                KeyCode::Esc => {
                     app.modal = ModalState::None;
                 }
                 _ => {}
@@ -140,6 +148,16 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
             KeyCode::Down | KeyCode::Char('j') => app.move_down(),
             KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => app.move_page_up(),
             KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => app.move_page_down(),
+            KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if let Some(file) = app.selected_file() {
+                    app.modal = ModalState::FileActions {
+                        file_id: file.id,
+                        file_name: file.name.clone(),
+                        file_type: file.file_type.clone(),
+                        selected: 0,
+                    };
+                }
+            }
             KeyCode::Enter => {
                 if let Some(file) = app.selected_file() {
                     let file_id = file.id;
@@ -213,6 +231,26 @@ fn execute_file_action(
         }
         "Copy file ID" => {
             copy_to_clipboard(app, &file_id.to_string(), "File ID copied!");
+        }
+        "Copy path" => {
+            let file_name = app.files.iter()
+                .find(|f| f.id == file_id)
+                .map(|f| f.name.clone())
+                .unwrap_or_default();
+            let mut parts: Vec<String> = app.breadcrumbs
+                .iter()
+                .skip(1) // skip root "My Files"
+                .map(|b| b.name.clone())
+                .collect();
+            parts.push(file_name);
+            let path = parts.join("/");
+            copy_to_clipboard(app, &path, "Path copied!");
+        }
+        "Download as zip" => {
+            app.pending_action = PendingAction::Download { file_id };
+        }
+        "Copy folder ID" => {
+            copy_to_clipboard(app, &file_id.to_string(), "Folder ID copied!");
         }
         "Go to folder" => {
             let parent_id = app.files.iter()

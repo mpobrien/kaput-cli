@@ -28,6 +28,9 @@ pub struct File {
     pub file_type: String,
     pub size: FileSize,
     pub created_at: String,
+    #[serde(default)]
+    #[tabled(skip)]
+    pub updated_at: String,
     #[serde_as(as = "DefaultOnNull")]
     pub parent_id: i64,
 }
@@ -297,7 +300,7 @@ pub fn download(
                 }
                 false => {
                     // Create a ZIP
-                    println!("Creating ZIP...");
+                    println!("Creating ZIP for \"{}\"...", files.parent.name);
 
                     let zip_url: String = put::zips::create(client, api_token, files.parent.id)
                         .expect("creating zip job");
