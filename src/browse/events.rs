@@ -267,8 +267,24 @@ fn execute_file_action(
 }
 
 fn open_in_browser(app: &mut BrowserApp, url: &str) {
-    let cmd = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
-    match std::process::Command::new(cmd).arg(url).spawn() {
+    let mut command = if cfg!(target_os = "macos") {
+        let mut cmd = std::process::Command::new("open");
+        cmd.arg(url);
+        cmd
+    } else if cfg!(target_os = "windows") {
+        // Use the default browser on Windows via the shell
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(&["/C", "start", ""]);
+        cmd.arg(url);
+        cmd
+    } else {
+        // Fallback for Unix-like systems
+        let mut cmd = std::process::Command::new("xdg-open");
+        cmd.arg(url);
+        cmd
+    };
+
+    match command.spawn() {
         Ok(_) => app.modal = ModalState::Success("Opening in browser...".to_string()),
         Err(e) => app.modal = ModalState::Error(format!("Could not open browser: {}", e)),
     }

@@ -54,13 +54,15 @@ pub fn resolve_path(client: &Client, api_token: &String, path: &str) -> Result<i
     let mut current_id: i64 = 0;
 
     for (i, part) in parts.iter().enumerate() {
+        let lower_part = part.to_lowercase();
+
         let response = list(client, api_token, current_id)
             .map_err(|e| e.to_string())?;
 
         let found = response
             .files
             .iter()
-            .find(|f| f.name.to_lowercase() == part.to_lowercase());
+            .find(|f| f.name.to_lowercase() == lower_part);
 
         match found {
             Some(file) => {
