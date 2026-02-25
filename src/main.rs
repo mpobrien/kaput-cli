@@ -1,4 +1,4 @@
-use clap::{value_parser, Arg, ArgGroup, Command};
+use clap::{value_parser, Arg, Command};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -115,23 +115,10 @@ fn cli() -> Command {
                         .about("Download a file or folder")
                         .long_about("Downloads a file or folder from your account to your device.")
                         .arg_required_else_help(true)
-                        .group(
-                            ArgGroup::new("target")
-                                .args(["SOURCE_PATH", "id"])
-                                .required(true)
-                        )
                         .arg(
-                            Arg::new("SOURCE_PATH")
-                            .help("Path to a file or folder on Put.io (e.g. Movies/film.mkv)")
-                            .required(false)
-                        )
-                        .arg(
-                            Arg::new("id")
-                            .short('i')
-                            .long("id")
-                            .value_parser(value_parser!(i64))
-                            .help("ID of a file or folder on Put.io")
-                            .required(false)
+                            Arg::new("TARGET")
+                            .help("File ID or path on Put.io (e.g. 12345 or Movies/film.mkv)")
+                            .required(true)
                         )
                         .arg(
                             Arg::new("path")
@@ -537,14 +524,13 @@ fn main() {
                 let recursive = sub_matches.get_flag("recursive");
                 let no_replace = sub_matches.get_flag("no-replace");
                 let dest_path = sub_matches.get_one::<String>("path");
-                let file_id = if let Some(id) = sub_matches.get_one::<i64>("id") {
-                    *id
-                } else {
-                    let source_path = sub_matches
-                        .get_one::<String>("SOURCE_PATH")
-                        .expect("missing source path");
-                    put::files::resolve_path(&client, &config.api_token, source_path)
-                        .unwrap_or_else(|e| panic!("Could not find '{}': {}", source_path, e))
+                let target = sub_matches
+                    .get_one::<String>("TARGET")
+                    .expect("missing target");
+                let file_id = match target.parse::<i64>() {
+                    Ok(id) => id,
+                    Err(_) => put::files::resolve_path(&client, &config.api_token, target)
+                        .unwrap_or_else(|e| panic!("Could not find '{}': {}", target, e)),
                 };
 
                 put::files::download(
