@@ -73,7 +73,6 @@ fn draw_file_list(f: &mut Frame, app: &mut BrowserApp, area: Rect) {
         .enumerate()
         .map(|(i, file)| {
             let cursor = if i == app.selected_index { ">>" } else { "  " };
-            let icon = file_type_icon(&file.file_type);
             let color = file_type_color(&file.file_type);
             let is_folder = file.file_type == "FOLDER";
             let name_style = if is_folder {
@@ -86,13 +85,10 @@ fn draw_file_list(f: &mut Frame, app: &mut BrowserApp, area: Rect) {
             } else {
                 file.size.to_string()
             };
-            let name_trunc = truncate(&file.name, 55);
-            let padding = " ".repeat(55usize.saturating_sub(name_trunc.chars().count()) + 1);
+            let name_trunc = truncate(&file.name, 64);
+            let padding = " ".repeat(64usize.saturating_sub(name_trunc.chars().count()) + 1);
 
-            let mut spans = vec![
-                Span::raw(format!("{} ", cursor)),
-                Span::styled(format!("{} ", icon), name_style),
-            ];
+            let mut spans = vec![Span::raw(format!("{} ", cursor))];
             if let Some(ref query) = search {
                 let match_style = name_style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
                 spans.extend(highlight_match(&name_trunc, query, name_style, match_style));
@@ -303,7 +299,7 @@ fn draw_file_actions_modal(
     let area = centered_rect(38, height, f.size());
     f.render_widget(Clear, area);
 
-    let title = format!(" {} ", truncate(file_name, 28));
+    let title = format!(" {} ", truncate(file_name, 64));
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -368,19 +364,6 @@ fn draw_confirm_modal(f: &mut Frame, file_name: String) {
     f.render_widget(p, inner);
 }
 
-fn file_type_icon(file_type: &str) -> &'static str {
-    match file_type {
-        "FOLDER" => "\u{f07b}",  //
-        "VIDEO" => "\u{f03d}",   //
-        "AUDIO" => "\u{f001}",   //
-        "IMAGE" => "\u{f03e}",   //
-        "ARCHIVE" => "\u{f1c6}", //
-        "PDF" => "\u{f1c1}",     //
-        "TEXT" => "\u{f15c}",    //
-        _ => "\u{f15b}",         //
-    }
-}
-
 fn file_type_color(file_type: &str) -> Color {
     match file_type {
         // Folders: bright warm yellow — visually dominant
@@ -424,7 +407,23 @@ fn truncate(s: &str, max_chars: usize) -> String {
     let count = s.chars().count();
     if count <= max_chars {
         s.to_string()
+    } else if max_chars == 0 {
+        String::new()
+    } else if max_chars == 1 {
+        "…".to_string()
     } else {
+        if let Some(dot) = s.rfind('.') {
+            if dot > 0 && dot < s.len() - 1 {
+                let (base, ext) = s.split_at(dot);
+                let ext_chars = ext.chars().count();
+                if ext_chars < max_chars {
+                    let base_chars = max_chars - ext_chars - 1;
+                    let base_trunc: String = base.chars().take(base_chars).collect();
+                    return format!("{}…{}", base_trunc, ext);
+                }
+            }
+        }
+
         let truncated: String = s.chars().take(max_chars.saturating_sub(1)).collect();
         format!("{}…", truncated)
     }
