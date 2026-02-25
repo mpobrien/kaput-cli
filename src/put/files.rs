@@ -41,6 +41,25 @@ pub struct FilesResponse {
     pub parent: File,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct FilesListPageResponse {
+    pub files: Vec<File>,
+    pub parent: File,
+    pub cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FilesContinueResponse {
+    pub files: Vec<File>,
+    pub cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FilesContinueRequest {
+    pub cursor: String,
+    pub per_page: i64,
+}
+
 /// Resolves a slash-separated path (e.g. "Movies/Action/film.mkv") to a file ID
 /// by walking the Put.io folder tree from the root. Matching is case-insensitive.
 /// Returns an error string if any component is not found.
@@ -79,15 +98,41 @@ pub fn resolve_path(client: &Client, api_token: &String, path: &str) -> Result<i
 
 /// Returns the user's files.
 pub fn list(client: &Client, api_token: &String, parent_id: i64) -> Result<FilesResponse, Error> {
-    let response: FilesResponse = client
-        .get(format!(
-            "https://api.put.io/v2/files/list?parent_id={parent_id}"
-        ))
+    const LIST_PAGE_SIZE: i64 = 1000;
+
+    let response: FilesListPageResponse = client
+        .get("https://api.put.io/v2/files/list")
+        .query(&[("parent_id", parent_id), ("per_page", LIST_PAGE_SIZE)])
         .header("authorization", format!("Bearer {api_token}"))
         .send()?
         .json()?;
 
-    Ok(response)
+    let parent = response.parent;
+    let mut files = response.files;
+    let mut cursor = response.cursor;
+
+    while let Some(next_cursor) = cursor {
+        if next_cursor.is_empty() {
+            break;
+        }
+
+        let request = FilesContinueRequest {
+            cursor: next_cursor,
+            per_page: LIST_PAGE_SIZE,
+        };
+
+        let page: FilesContinueResponse = client
+            .post("https://api.put.io/v2/files/list/continue")
+            .form(&request)
+            .header("authorization", format!("Bearer {api_token}"))
+            .send()?
+            .json()?;
+
+        files.extend(page.files);
+        cursor = page.cursor;
+    }
+
+    Ok(FilesResponse { files, parent })
 }
 
 #[derive(Debug, Serialize, Deserialize)]
