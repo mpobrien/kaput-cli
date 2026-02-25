@@ -235,18 +235,21 @@ fn execute_file_action(
             copy_to_clipboard(app, &file_id.to_string(), "File ID copied!");
         }
         "Copy path" => {
-            let file_name = app.files.iter()
-                .find(|f| f.id == file_id)
-                .map(|f| f.name.clone())
-                .unwrap_or_default();
-            let mut parts: Vec<String> = app.breadcrumbs
-                .iter()
-                .skip(1) // skip root "My Files"
-                .map(|b| b.name.clone())
-                .collect();
-            parts.push(file_name);
-            let path = parts.join("/");
-            copy_to_clipboard(app, &path, "Path copied!");
+            let (file_name, parent_id) = match app.files.iter().find(|f| f.id == file_id) {
+                Some(file) => (file.name.clone(), file.parent_id),
+                None => {
+                    app.modal = ModalState::Error("File not found for path lookup.".to_string());
+                    return;
+                }
+            };
+            match build_path_parts(client, api_token, parent_id) {
+                Ok(mut parts) => {
+                    parts.push(file_name);
+                    let path = parts.join("/");
+                    copy_to_clipboard(app, &path, "Path copied!");
+                }
+                Err(e) => app.modal = ModalState::Error(e),
+            }
         }
         "Download as zip" => {
             app.pending_action = PendingAction::Download { file_id };
@@ -264,6 +267,42 @@ fn execute_file_action(
         _ => {}
     }
     let _ = file_type;
+}
+
+fn build_path_parts(
+    client: &Client,
+    api_token: &String,
+    mut parent_id: i64,
+) -> Result<Vec<String>, String> {
+    if parent_id < 0 {
+        return Err("Path lookup failed: invalid parent id.".to_string());
+    }
+
+    let mut parts = Vec::new();
+    let mut depth = 0;
+    while parent_id != 0 {
+        depth += 1;
+        if depth > 256 {
+            return Err("Path lookup failed: path too deep.".to_string());
+        }
+
+        let response = put::files::list(client, api_token, parent_id)
+            .map_err(|e| format!("Path lookup failed: {}", e))?;
+        let folder = response.parent;
+
+        if folder.name.is_empty() {
+            return Err("Path lookup failed: missing folder name.".to_string());
+        }
+        if folder.parent_id == parent_id {
+            return Err("Path lookup failed: parent loop detected.".to_string());
+        }
+
+        parts.push(folder.name);
+        parent_id = folder.parent_id;
+    }
+
+    parts.reverse();
+    Ok(parts)
 }
 
 fn open_in_browser(app: &mut BrowserApp, url: &str) {
