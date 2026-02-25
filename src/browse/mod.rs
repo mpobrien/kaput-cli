@@ -91,6 +91,22 @@ pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
                 app.needs_reload = true;
             }
 
+            PendingAction::Delete { file_id } => {
+                let client2 = client.clone();
+                let token2 = api_token.clone();
+                let file_id_str = file_id.to_string();
+                let result = spin_while(&mut terminal, &mut app, move || {
+                    put::files::delete(&client2, &token2, &file_id_str)
+                })?;
+                match result {
+                    Ok(_) => {
+                        app.spinner_label = "Loading...".to_string();
+                        app.needs_reload = true;
+                    }
+                    Err(e) => app.modal = ModalState::Error(format!("Delete failed: {}", e)),
+                }
+            }
+
             PendingAction::Download { file_id } => {
                 disable_raw_mode()?;
                 execute!(terminal.backend_mut(), LeaveAlternateScreen)?;

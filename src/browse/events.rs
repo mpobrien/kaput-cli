@@ -21,17 +21,10 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
             let file_id = *file_id;
             match key.code {
                 KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    match put::files::delete(client, api_token, &file_id.to_string()) {
-                        Ok(_) => {
-                            app.save_position_for_reload();
-                            app.spinner_label = "Deleting...".to_string();
-                            app.modal = ModalState::Loading;
-                            app.needs_reload = true;
-                        }
-                        Err(e) => {
-                            app.modal = ModalState::Error(format!("Delete failed: {}", e));
-                        }
-                    }
+                    app.save_position_for_reload();
+                    app.pending_action = PendingAction::Delete { file_id };
+                    app.spinner_label = "Deleting...".to_string();
+                    app.modal = ModalState::Loading;
                 }
                 KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
                     app.modal = ModalState::None;

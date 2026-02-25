@@ -81,6 +81,7 @@ pub enum PendingAction {
     Download { file_id: i64 },
     Search { query: String },
     GoToFolder { parent_id: i64, file_id: i64 },
+    Delete { file_id: i64 },
 }
 
 pub struct BrowserApp {
