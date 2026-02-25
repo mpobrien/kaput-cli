@@ -1,9 +1,9 @@
 use ratatui::{
-    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, Padding, Paragraph},
+    Frame,
 };
 
 use super::app::{file_actions_for, AppState, BrowserApp, FileAction, ModalState, SortField};
@@ -34,7 +34,12 @@ pub fn draw(f: &mut Frame, app: &mut BrowserApp) {
         ModalState::Error(msg) => draw_error_modal(f, msg.clone()),
         ModalState::Success(msg) => draw_success_modal(f, msg.clone()),
         ModalState::ConfirmDelete { file_name, .. } => draw_confirm_modal(f, file_name.clone()),
-        ModalState::FileActions { file_name, file_type, selected, .. } => {
+        ModalState::FileActions {
+            file_name,
+            file_type,
+            selected,
+            ..
+        } => {
             draw_file_actions_modal(f, file_name, file_type, *selected, app.is_search_results);
         }
         ModalState::Find { query } => draw_find_bar(f, query),
@@ -44,7 +49,9 @@ pub fn draw(f: &mut Frame, app: &mut BrowserApp) {
 }
 
 fn draw_breadcrumb(f: &mut Frame, app: &BrowserApp, area: Rect) {
-    let crumb_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
+    let crumb_style = Style::default()
+        .fg(Color::White)
+        .add_modifier(Modifier::BOLD);
     let sep_style = Style::default().fg(Color::DarkGray);
 
     let mut spans: Vec<Span> = vec![Span::raw(" ")];
@@ -93,7 +100,10 @@ fn draw_file_list(f: &mut Frame, app: &mut BrowserApp, area: Rect) {
                 spans.push(Span::styled(name_trunc, name_style));
             }
             spans.push(Span::styled(padding, name_style));
-            spans.push(Span::styled(format!("{:>10}", size_str), Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled(
+                format!("{:>10}", size_str),
+                Style::default().fg(Color::DarkGray),
+            ));
 
             ListItem::new(Line::from(spans))
         })
@@ -112,14 +122,16 @@ fn draw_file_list(f: &mut Frame, app: &mut BrowserApp, area: Rect) {
 }
 
 fn draw_help_bar(f: &mut Frame, app: &BrowserApp, area: Rect) {
-    let k = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
+    let k = Style::default()
+        .fg(Color::White)
+        .add_modifier(Modifier::BOLD);
     let l = Style::default().fg(Color::DarkGray);
     let sep = Span::styled("    ", l);
 
     let sort_label = match app.sort_field {
-        SortField::Name     => "Name    ",
-        SortField::Size     => "Size    ",
-        SortField::Date     => "Date    ",
+        SortField::Name => "Name    ",
+        SortField::Size => "Size    ",
+        SortField::Date => "Date    ",
         SortField::Modified => "Modified",
     };
 
@@ -129,24 +141,36 @@ fn draw_help_bar(f: &mut Frame, app: &BrowserApp, area: Rect) {
     // Col 3: key_w=1  (s  /  r)
     // Col 4: key_w=5  (^U/^D  /  ^F)
     let row1 = Line::from(vec![
-        Span::styled("↑↓", k), Span::styled("/", l), Span::styled("jk", k),
-        Span::styled(format!("  {:<8}", "Navigate"), l), sep.clone(),
-        Span::styled("Enter", k), Span::styled("/", l), Span::styled("^O", k),
-        Span::styled(format!("  {:<6}", "Open"),     l), sep.clone(),
+        Span::styled("↑↓", k),
+        Span::styled("/", l),
+        Span::styled("jk", k),
+        Span::styled(format!("  {:<8}", "Navigate"), l),
+        sep.clone(),
+        Span::styled("Enter", k),
+        Span::styled("/", l),
+        Span::styled("^O", k),
+        Span::styled(format!("  {:<6}", "Open"), l),
+        sep.clone(),
         Span::styled("s", k),
-        Span::styled(format!("  {:<8}", sort_label), l), sep.clone(),
-        Span::styled("^U", k), Span::styled("/", l), Span::styled("^D", k),
-        Span::styled(format!("  {:<6}", "Scroll"),   l),
+        Span::styled(format!("  {:<8}", sort_label), l),
+        sep.clone(),
+        Span::styled("^U", k),
+        Span::styled("/", l),
+        Span::styled("^D", k),
+        Span::styled(format!("  {:<6}", "Scroll"), l),
     ]);
     let row2 = Line::from(vec![
-        Span::styled(format!("{:>5}", "Bksp"),  k),
-        Span::styled(format!("  {:<8}", "Back"),     l), sep.clone(),
-        Span::styled(format!("{:>8}", "x"),     k),
-        Span::styled(format!("  {:<6}", "Delete"),   l), sep.clone(),
+        Span::styled(format!("{:>5}", "Bksp"), k),
+        Span::styled(format!("  {:<8}", "Back"), l),
+        sep.clone(),
+        Span::styled(format!("{:>8}", "x"), k),
+        Span::styled(format!("  {:<6}", "Delete"), l),
+        sep.clone(),
         Span::styled("r", k),
-        Span::styled(format!("  {:<8}", "Reverse"),  l), sep.clone(),
-        Span::styled(format!("{:>5}", "^F"),    k),
-        Span::styled(format!("  {:<6}", "Search"),   l),
+        Span::styled(format!("  {:<8}", "Reverse"), l),
+        sep.clone(),
+        Span::styled(format!("{:>5}", "^F"), k),
+        Span::styled(format!("  {:<6}", "Search"), l),
     ]);
 
     f.render_widget(
@@ -182,17 +206,28 @@ fn draw_search_input(f: &mut Frame, query: &str) {
         Paragraph::new(query).style(Style::default().fg(Color::White).bg(MODAL_BG)),
         inner,
     );
-    let cursor_x = (inner.x + query.chars().count() as u16).min(inner.x + inner.width.saturating_sub(1));
+    let cursor_x =
+        (inner.x + query.chars().count() as u16).min(inner.x + inner.width.saturating_sub(1));
     f.set_cursor(cursor_x, inner.y);
 }
 
 fn draw_find_bar(f: &mut Frame, query: &str) {
     let size = f.size();
     let y = size.height.saturating_sub(1);
-    let area = Rect { x: 0, y, width: size.width, height: 1 };
+    let area = Rect {
+        x: 0,
+        y,
+        width: size.width,
+        height: 1,
+    };
     f.render_widget(Clear, area);
     let line = Line::from(vec![
-        Span::styled("/", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "/",
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(query, Style::default().fg(Color::White)),
     ]);
     f.render_widget(Paragraph::new(line), area);
@@ -213,7 +248,11 @@ fn draw_spinner(f: &mut Frame, tick: u8, label: &str) {
         height: 1,
     };
     f.render_widget(
-        Paragraph::new(text).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Paragraph::new(text).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
         area,
     );
 }
@@ -252,7 +291,13 @@ fn draw_success_modal(f: &mut Frame, msg: String) {
     f.render_widget(p, inner);
 }
 
-fn draw_file_actions_modal(f: &mut Frame, file_name: &str, file_type: &str, selected: usize, in_search_results: bool) {
+fn draw_file_actions_modal(
+    f: &mut Frame,
+    file_name: &str,
+    file_type: &str,
+    selected: usize,
+    in_search_results: bool,
+) {
     let actions = file_actions_for(file_type, in_search_results);
     let height = actions.len() as u16 + 4; // borders + vertical padding
     let area = centered_rect(38, height, f.size());
@@ -275,7 +320,10 @@ fn draw_file_actions_modal(f: &mut Frame, file_name: &str, file_type: &str, sele
             let is_sel = i == selected;
             let cursor = if is_sel { "▶" } else { " " };
             let (row_style, key_style) = if is_sel {
-                let s = Style::default().bg(Color::LightCyan).fg(Color::Black).add_modifier(Modifier::BOLD);
+                let s = Style::default()
+                    .bg(Color::LightCyan)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD);
                 (s, s)
             } else {
                 (
@@ -286,9 +334,8 @@ fn draw_file_actions_modal(f: &mut Frame, file_name: &str, file_type: &str, sele
             let cursor_text = format!(" {} ", cursor);
             let key_text = format!("[{}] ", key);
             let label_text = label.to_string();
-            let content_width = cursor_text.chars().count()
-                + key_text.chars().count()
-                + label_text.chars().count();
+            let content_width =
+                cursor_text.chars().count() + key_text.chars().count() + label_text.chars().count();
             let pad_width = inner.width.saturating_sub(content_width as u16) as usize;
 
             ListItem::new(Line::from(vec![
@@ -323,28 +370,28 @@ fn draw_confirm_modal(f: &mut Frame, file_name: String) {
 
 fn file_type_icon(file_type: &str) -> &'static str {
     match file_type {
-        "FOLDER"  => "\u{f07b}", //
-        "VIDEO"   => "\u{f03d}", //
-        "AUDIO"   => "\u{f001}", //
-        "IMAGE"   => "\u{f03e}", //
+        "FOLDER" => "\u{f07b}",  //
+        "VIDEO" => "\u{f03d}",   //
+        "AUDIO" => "\u{f001}",   //
+        "IMAGE" => "\u{f03e}",   //
         "ARCHIVE" => "\u{f1c6}", //
-        "PDF"     => "\u{f1c1}", //
-        "TEXT"    => "\u{f15c}", //
-        _         => "\u{f15b}", //
+        "PDF" => "\u{f1c1}",     //
+        "TEXT" => "\u{f15c}",    //
+        _ => "\u{f15b}",         //
     }
 }
 
 fn file_type_color(file_type: &str) -> Color {
     match file_type {
         // Folders: bright warm yellow — visually dominant
-        "FOLDER"  => Color::LightYellow,
+        "FOLDER" => Color::LightYellow,
         // Files: standard (non-bright) colors, clearly subordinate to folders
-        "VIDEO"   => Color::Green,
-        "AUDIO"   => Color::Magenta,
-        "IMAGE"   => Color::Cyan,
+        "VIDEO" => Color::Green,
+        "AUDIO" => Color::Magenta,
+        "IMAGE" => Color::Cyan,
         "ARCHIVE" => Color::Red,
-        "PDF"     => Color::Red,
-        _         => Color::Gray,
+        "PDF" => Color::Red,
+        _ => Color::Gray,
     }
 }
 

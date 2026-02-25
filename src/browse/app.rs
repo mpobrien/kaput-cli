@@ -29,10 +29,22 @@ pub enum AppState {
 pub enum ModalState {
     None,
     Loading,
-    ConfirmDelete { file_id: i64, file_name: String },
-    FileActions { file_id: i64, file_name: String, file_type: String, selected: usize },
-    Find { query: String },
-    SearchInput { query: String },
+    ConfirmDelete {
+        file_id: i64,
+        file_name: String,
+    },
+    FileActions {
+        file_id: i64,
+        file_name: String,
+        file_type: String,
+        selected: usize,
+    },
+    Find {
+        query: String,
+    },
+    SearchInput {
+        query: String,
+    },
     Error(String),
     Success(String),
 }
@@ -47,31 +59,79 @@ pub struct FileAction {
 pub fn file_actions_for(file_type: &str, in_search_results: bool) -> Vec<FileAction> {
     let mut actions = if file_type == "FOLDER" {
         vec![
-            FileAction { label: "Download as zip", key: 'z' },
-            FileAction { label: "Open in browser", key: 'b' },
-            FileAction { label: "Copy path",       key: 'p' },
-            FileAction { label: "Copy folder ID",  key: 'i' },
+            FileAction {
+                label: "Download as zip",
+                key: 'z',
+            },
+            FileAction {
+                label: "Open in browser",
+                key: 'b',
+            },
+            FileAction {
+                label: "Copy path",
+                key: 'p',
+            },
+            FileAction {
+                label: "Copy folder ID",
+                key: 'i',
+            },
         ]
     } else if file_type == "VIDEO" {
         vec![
-            FileAction { label: "Copy URL",        key: 'c' },
-            FileAction { label: "Copy Stream URL", key: 's' },
-            FileAction { label: "Download",        key: 'd' },
-            FileAction { label: "Open in browser", key: 'b' },
-            FileAction { label: "Copy path",       key: 'p' },
-            FileAction { label: "Copy file ID",    key: 'i' },
+            FileAction {
+                label: "Copy URL",
+                key: 'c',
+            },
+            FileAction {
+                label: "Copy Stream URL",
+                key: 's',
+            },
+            FileAction {
+                label: "Download",
+                key: 'd',
+            },
+            FileAction {
+                label: "Open in browser",
+                key: 'b',
+            },
+            FileAction {
+                label: "Copy path",
+                key: 'p',
+            },
+            FileAction {
+                label: "Copy file ID",
+                key: 'i',
+            },
         ]
     } else {
         vec![
-            FileAction { label: "Copy URL",        key: 'c' },
-            FileAction { label: "Download",        key: 'd' },
-            FileAction { label: "Open in browser", key: 'b' },
-            FileAction { label: "Copy path",       key: 'p' },
-            FileAction { label: "Copy file ID",    key: 'i' },
+            FileAction {
+                label: "Copy URL",
+                key: 'c',
+            },
+            FileAction {
+                label: "Download",
+                key: 'd',
+            },
+            FileAction {
+                label: "Open in browser",
+                key: 'b',
+            },
+            FileAction {
+                label: "Copy path",
+                key: 'p',
+            },
+            FileAction {
+                label: "Copy file ID",
+                key: 'i',
+            },
         ]
     };
     if in_search_results {
-        actions.push(FileAction { label: "Go to folder", key: 'g' });
+        actions.push(FileAction {
+            label: "Go to folder",
+            key: 'g',
+        });
     }
     actions
 }
@@ -112,7 +172,12 @@ impl BrowserApp {
         list_state.select(Some(0));
         BrowserApp {
             current_folder_id: 0,
-            breadcrumbs: vec![BreadcrumbEntry { id: 0, name: "My Files".to_string(), saved_index: 0, saved_offset: 0 }],
+            breadcrumbs: vec![BreadcrumbEntry {
+                id: 0,
+                name: "My Files".to_string(),
+                saved_index: 0,
+                saved_offset: 0,
+            }],
             files: vec![],
             selected_index: 0,
             app_state: AppState::Browsing,
@@ -138,7 +203,12 @@ impl BrowserApp {
             current.saved_index = self.selected_index;
             current.saved_offset = *self.list_state.offset_mut();
         }
-        self.breadcrumbs.push(BreadcrumbEntry { id, name, saved_index: 0, saved_offset: 0 });
+        self.breadcrumbs.push(BreadcrumbEntry {
+            id,
+            name,
+            saved_index: 0,
+            saved_offset: 0,
+        });
         self.current_folder_id = id;
         self.files.clear();
         self.selected_index = 0;
@@ -165,10 +235,16 @@ impl BrowserApp {
         self.files = files;
         self.sort_files();
         let (idx, apply_scroll) = if let Some(select_id) = self.pending_select_id.take() {
-            let i = self.files.iter().position(|f| f.id == select_id).unwrap_or(0);
+            let i = self
+                .files
+                .iter()
+                .position(|f| f.id == select_id)
+                .unwrap_or(0);
             (i, false) // let ratatui auto-scroll to the selected item
         } else {
-            let i = self.restore_index.take()
+            let i = self
+                .restore_index
+                .take()
                 .unwrap_or(0)
                 .min(self.files.len().saturating_sub(1));
             (i, true)
@@ -252,7 +328,11 @@ impl BrowserApp {
                 SortField::Date => a.created_at.cmp(&b.created_at),
                 SortField::Modified => a.updated_at.cmp(&b.updated_at),
             };
-            if dir == SortDirection::Desc { ord.reverse() } else { ord }
+            if dir == SortDirection::Desc {
+                ord.reverse()
+            } else {
+                ord
+            }
         });
     }
 

@@ -14,8 +14,8 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use reqwest::blocking::Client;
 
-use app::{AppState, BrowserApp, ModalState, PendingAction};
 use crate::put;
+use app::{AppState, BrowserApp, ModalState, PendingAction};
 
 pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
     // Restore terminal on panic
@@ -91,7 +91,10 @@ pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
                 app.needs_reload = true;
             }
 
-            PendingAction::CopyPath { file_name, parent_id } => {
+            PendingAction::CopyPath {
+                file_name,
+                parent_id,
+            } => {
                 let client2 = client.clone();
                 let token2 = api_token.clone();
                 let result = spin_while(&mut terminal, &mut app, move || {
@@ -165,7 +168,7 @@ pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
 /// loop alive so the spinner actually animates.
 fn spin_while<T, F>(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    mut app: &mut BrowserApp,
+    app: &mut BrowserApp,
     work: F,
 ) -> io::Result<T>
 where
@@ -173,14 +176,19 @@ where
     F: FnOnce() -> T + Send + 'static,
 {
     let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || { tx.send(work()).ok(); });
+    std::thread::spawn(move || {
+        tx.send(work()).ok();
+    });
     loop {
         app.tick = app.tick.wrapping_add(1);
-        terminal.draw(|f| ui::draw(f, &mut app))?;
+        terminal.draw(|f| ui::draw(f, app))?;
         match rx.try_recv() {
             Ok(result) => return Ok(result),
             Err(mpsc::TryRecvError::Disconnected) => {
-                return Err(io::Error::new(io::ErrorKind::Other, "worker thread panicked"));
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "worker thread panicked",
+                ));
             }
             Err(mpsc::TryRecvError::Empty) => {
                 std::thread::sleep(Duration::from_millis(80));

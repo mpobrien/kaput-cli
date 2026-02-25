@@ -33,7 +33,12 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
             }
         }
 
-        ModalState::FileActions { file_id, file_name, file_type, selected } => {
+        ModalState::FileActions {
+            file_id,
+            file_name,
+            file_type,
+            selected,
+        } => {
             // Extract owned copies so the borrow on app.modal ends.
             let file_id = *file_id;
             let selected = *selected;
@@ -46,7 +51,12 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
             match key.code {
                 KeyCode::Up | KeyCode::Char('k') => {
                     let new = if selected == 0 { n - 1 } else { selected - 1 };
-                    app.modal = ModalState::FileActions { file_id, file_name, file_type, selected: new };
+                    app.modal = ModalState::FileActions {
+                        file_id,
+                        file_name,
+                        file_type,
+                        selected: new,
+                    };
                 }
                 KeyCode::Down | KeyCode::Char('j') => {
                     app.modal = ModalState::FileActions {
@@ -96,7 +106,9 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
                     app.modal = ModalState::SearchInput { query: q };
                 }
                 KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    app.modal = ModalState::SearchInput { query: query + &c.to_string() };
+                    app.modal = ModalState::SearchInput {
+                        query: query + &c.to_string(),
+                    };
                 }
                 _ => {}
             }
@@ -121,7 +133,9 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
                     app.modal = ModalState::Find { query: q };
                 }
                 KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    app.modal = ModalState::Find { query: query + &c.to_string() };
+                    app.modal = ModalState::Find {
+                        query: query + &c.to_string(),
+                    };
                 }
                 _ => {}
             }
@@ -141,8 +155,12 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
             }
             KeyCode::Up | KeyCode::Char('k') => app.move_up(),
             KeyCode::Down | KeyCode::Char('j') => app.move_down(),
-            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => app.move_page_up(),
-            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => app.move_page_down(),
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_page_up()
+            }
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_page_down()
+            }
             KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 if let Some(file) = app.selected_file() {
                     app.modal = ModalState::FileActions {
@@ -176,10 +194,14 @@ pub fn handle_key(app: &mut BrowserApp, key: KeyEvent, client: &Client, api_toke
                 app.needs_reload = true;
             }
             KeyCode::Char('/') => {
-                app.modal = ModalState::Find { query: String::new() };
+                app.modal = ModalState::Find {
+                    query: String::new(),
+                };
             }
             KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.modal = ModalState::SearchInput { query: String::new() };
+                app.modal = ModalState::SearchInput {
+                    query: String::new(),
+                };
             }
             KeyCode::Char('n') => {
                 app.find_next();
@@ -235,7 +257,10 @@ fn execute_file_action(
                     return;
                 }
             };
-            app.pending_action = PendingAction::CopyPath { file_name, parent_id };
+            app.pending_action = PendingAction::CopyPath {
+                file_name,
+                parent_id,
+            };
             app.spinner_label = "Copying path...".to_string();
             app.modal = ModalState::Loading;
         }
@@ -246,7 +271,9 @@ fn execute_file_action(
             copy_to_clipboard(app, &file_id.to_string(), "Folder ID copied!");
         }
         "Go to folder" => {
-            let parent_id = app.files.iter()
+            let parent_id = app
+                .files
+                .iter()
                 .find(|f| f.id == file_id)
                 .map(|f| f.parent_id)
                 .unwrap_or(0);
@@ -301,7 +328,7 @@ fn open_in_browser(app: &mut BrowserApp, url: &str) {
     } else if cfg!(target_os = "windows") {
         // Use the default browser on Windows via the shell
         let mut cmd = std::process::Command::new("cmd");
-        cmd.args(&["/C", "start", ""]);
+        cmd.args(["/C", "start", ""]);
         cmd.arg(url);
         cmd
     } else {

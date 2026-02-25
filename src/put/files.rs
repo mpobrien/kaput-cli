@@ -56,8 +56,7 @@ pub fn resolve_path(client: &Client, api_token: &String, path: &str) -> Result<i
     for (i, part) in parts.iter().enumerate() {
         let lower_part = part.to_lowercase();
 
-        let response = list(client, api_token, current_id)
-            .map_err(|e| e.to_string())?;
+        let response = list(client, api_token, current_id).map_err(|e| e.to_string())?;
 
         let found = response
             .files
