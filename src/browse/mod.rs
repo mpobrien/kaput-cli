@@ -91,6 +91,22 @@ pub fn run(client: &Client, api_token: &String) -> io::Result<()> {
                 app.needs_reload = true;
             }
 
+            PendingAction::CopyPath { file_name, parent_id } => {
+                let client2 = client.clone();
+                let token2 = api_token.clone();
+                let result = spin_while(&mut terminal, &mut app, move || {
+                    events::build_path_parts(&client2, &token2, parent_id)
+                })?;
+                match result {
+                    Ok(mut parts) => {
+                        parts.push(file_name);
+                        let path = parts.join("/");
+                        events::copy_to_clipboard(&mut app, &path, "Path copied!");
+                    }
+                    Err(e) => app.modal = ModalState::Error(e),
+                }
+            }
+
             PendingAction::Delete { file_id } => {
                 let client2 = client.clone();
                 let token2 = api_token.clone();

@@ -235,14 +235,9 @@ fn execute_file_action(
                     return;
                 }
             };
-            match build_path_parts(client, api_token, parent_id) {
-                Ok(mut parts) => {
-                    parts.push(file_name);
-                    let path = parts.join("/");
-                    copy_to_clipboard(app, &path, "Path copied!");
-                }
-                Err(e) => app.modal = ModalState::Error(e),
-            }
+            app.pending_action = PendingAction::CopyPath { file_name, parent_id };
+            app.spinner_label = "Copying path...".to_string();
+            app.modal = ModalState::Loading;
         }
         "Download as zip" => {
             app.pending_action = PendingAction::Download { file_id };
@@ -262,7 +257,7 @@ fn execute_file_action(
     let _ = file_type;
 }
 
-fn build_path_parts(
+pub(super) fn build_path_parts(
     client: &Client,
     api_token: &String,
     mut parent_id: i64,
@@ -322,7 +317,7 @@ fn open_in_browser(app: &mut BrowserApp, url: &str) {
     }
 }
 
-fn copy_to_clipboard(app: &mut BrowserApp, text: &str, success_msg: &str) {
+pub(super) fn copy_to_clipboard(app: &mut BrowserApp, text: &str, success_msg: &str) {
     match arboard::Clipboard::new() {
         Ok(mut cb) => match cb.set_text(text) {
             Ok(_) => app.modal = ModalState::Success(success_msg.to_string()),

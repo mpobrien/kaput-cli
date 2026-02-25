@@ -82,6 +82,7 @@ pub enum PendingAction {
     Search { query: String },
     GoToFolder { parent_id: i64, file_id: i64 },
     Delete { file_id: i64 },
+    CopyPath { file_name: String, parent_id: i64 },
 }
 
 pub struct BrowserApp {
