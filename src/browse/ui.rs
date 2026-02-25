@@ -283,12 +283,20 @@ fn draw_file_actions_modal(f: &mut Frame, file_name: &str, file_type: &str, sele
                     Style::default().bg(MODAL_BG).fg(Color::DarkGray),
                 )
             };
+            let cursor_text = format!(" {} ", cursor);
+            let key_text = format!("[{}] ", key);
+            let label_text = label.to_string();
+            let content_width = cursor_text.chars().count()
+                + key_text.chars().count()
+                + label_text.chars().count();
+            let pad_width = inner.width.saturating_sub(content_width as u16) as usize;
+
             ListItem::new(Line::from(vec![
-                Span::styled(format!(" {} ", cursor), row_style),
-                Span::styled(format!("[{}] ", key), key_style),
-                Span::styled(label.to_string(), row_style),
+                Span::styled(cursor_text, row_style),
+                Span::styled(key_text, key_style),
+                Span::styled(label_text, row_style),
                 // Fill the rest of the row so the highlight spans the full width
-                Span::styled(" ".repeat(30), row_style),
+                Span::styled(" ".repeat(pad_width), row_style),
             ]))
         })
         .collect();
