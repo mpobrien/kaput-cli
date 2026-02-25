@@ -185,10 +185,7 @@ where
         match rx.try_recv() {
             Ok(result) => return Ok(result),
             Err(mpsc::TryRecvError::Disconnected) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "worker thread panicked",
-                ));
+                return Err(io::Error::other("worker thread panicked"));
             }
             Err(mpsc::TryRecvError::Empty) => {
                 std::thread::sleep(Duration::from_millis(80));
